@@ -1,12 +1,12 @@
 (function () {
     'use strict';
 
-    // Включение торрентов + жёсткая автонастройка парсера Jackett на наш сервер.
-    var HOST = '192.168.0.92:9118';
+    // Возврат «Торрентов»/«Парсера»/«TorrServer» в магазинных сборках Lampa (демо-режим).
+    // Адрес сервера здесь НЕ нужен: парсер настраивается в on.js через {localhost}.
 
     try {
-        localStorage.setItem('remove_white_and_demo', '1');
-        localStorage.setItem('parser_use', '1');
+        localStorage.setItem('remove_white_and_demo', '1'); // выключить демо-режим
+        localStorage.setItem('parser_use', '1');            // не глушить торренты
     } catch (e) {}
 
     function apply() {
@@ -14,9 +14,6 @@
         try {
             Lampa.Storage.set('parser_use', true);
             Lampa.Storage.set('torrents_use', true);
-            Lampa.Storage.set('parser_torrent_type', 'jackett');
-            Lampa.Storage.set('jackett_url', HOST);
-            Lampa.Storage.set('jackett_key', '1');
 
             window.lampa_settings = window.lampa_settings || {};
             window.lampa_settings.torrents_use = true;

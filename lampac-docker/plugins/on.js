@@ -1,6 +1,10 @@
 (function () {
     'use strict';
 
+    // адрес сервера подставляет сам Lampac ({localhost} -> http://хост:порт). IP не зашит.
+    var LHOST = '{localhost}';                             // напр. http://host:9118
+    var LHOSTNP = LHOST.replace(/^https?:\/\//, '');       // хост:порт без схемы (для парсера)
+
     // === Lampac inline unlock: демо-режим off + автонастройка парсера Jackett ===
     // Выполняется при каждой загрузке on.js (грузится надёжно как добавленный плагин).
     // блокируем загрузку CUB-плагина shots (заставки на главной): фильтруем его URL из putScriptAsync
@@ -38,7 +42,7 @@
             Lampa.Storage.set('parser_use', true);
             Lampa.Storage.set('torrents_use', true);
             Lampa.Storage.set('parser_torrent_type', 'jackett');
-            Lampa.Storage.set('jackett_url', '192.168.0.92:9118');
+            Lampa.Storage.set('jackett_url', LHOSTNP);
             Lampa.Storage.set('jackett_key', '1');
             Lampa.Storage.set('shots', false);
         }
@@ -64,7 +68,7 @@
     } catch (e) {}
 
     // украинский IPTV (свой плагин с сервера, каналы встроены)
-    try { Lampa.Utils.putScriptAsync(['http://192.168.0.92:9118/uatv.js'], function () {}); } catch (e) {}
+    try { Lampa.Utils.putScriptAsync([LHOST + '/uatv.js'], function () {}); } catch (e) {}
 
     Lampa.Utils.putScriptAsync([{plugins}], function() {});
 })();

@@ -2,8 +2,6 @@
 # Установка self-hosted Lampac NextGen из этого пакета.
 # Требуется: Docker + docker compose (плагин v2). Запускать на Linux-хосте.
 #   ./install.sh
-# Опции через переменные окружения:
-#   SERVER_IP=192.168.1.50 ./install.sh   — заменить адрес сервера в конфигах
 set -e
 cd "$(dirname "$0")"
 
@@ -14,15 +12,15 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-# 1. Docker-образ: загрузить из архива (самодостаточно) или подтянуть из реестра
+# 1. Docker-образ: из архива (самодостаточно) или из реестра ghcr.io
 if [ -f lampac-image.tar ]; then
-  echo "-> Загружаю Docker-образ из архива (lampac-image.tar)..."
+  echo "-> Загружаю Docker-образ из архива..."
   docker load -i lampac-image.tar
 elif [ -f lampac-image.tar.gz ]; then
-  echo "-> Загружаю Docker-образ из архива (lampac-image.tar.gz)..."
+  echo "-> Загружаю Docker-образ из архива (gz)..."
   gunzip -c lampac-image.tar.gz | docker load
 else
-  echo "-> Образа в пакете нет — тяну из реестра ghcr.io..."
+  echo "-> Образа в пакете нет — тяну из ghcr.io..."
   docker compose pull
 fi
 
@@ -35,23 +33,17 @@ if [ ! -s lampac-docker/config/passwd ]; then
     head -c 16 /dev/urandom | base64 | tr -d '\n=+/' > lampac-docker/config/passwd
   fi
   chmod 600 lampac-docker/config/passwd
-  echo "   пароль: $(cat lampac-docker/config/passwd)"
+  echo "   пароль root: $(cat lampac-docker/config/passwd)"
 fi
 
 # 3. Каталоги данных
 mkdir -p storage/cache storage/data/ts storage/data/dlna lampac-docker/database
 
-# 4. (опц.) сменить IP сервера во всех конфигах
-if [ -n "$SERVER_IP" ] && [ "$SERVER_IP" != "192.168.0.92" ]; then
-  echo "-> Меняю адрес 192.168.0.92 -> $SERVER_IP..."
-  grep -rl '192\.168\.0\.92' lampac-docker/ 2>/dev/null | xargs -r sed -i "s/192\.168\.0\.92/$SERVER_IP/g"
-fi
-
-# 5. Запуск
+# 4. Запуск
 echo "-> Запускаю контейнер..."
 docker compose up -d
 
-# 6. (опц.) авто-обновление украинского IPTV-плейлиста раз в сутки
+# 5. (опц.) авто-обновление украинского IPTV-плейлиста раз в сутки
 if command -v crontab >/dev/null 2>&1 && [ -f lampac-docker/refresh_uatv.sh ]; then
   chmod +x lampac-docker/refresh_uatv.sh
   DIR="$(pwd)/lampac-docker"
@@ -59,10 +51,19 @@ if command -v crontab >/dev/null 2>&1 && [ -f lampac-docker/refresh_uatv.sh ]; t
     echo "-> Cron авто-обновления IPTV поставлен (05:30)."
 fi
 
-IP="${SERVER_IP:-<адрес-этого-сервера>}"
-echo ""
-echo "== Готово! =="
-echo "Веб-Lampa:            http://$IP:9118"
-echo "Плагин для Lampa (ТВ): добавьте в Расширения  http://$IP:9118/on.js"
-echo "Парсер (Jackett):     http://$IP:9118   (ключ пустой, настроится сам)"
-echo "TorrServer:           http://$IP:9118/ts"
+# локальный IP хоста — только для подсказки
+IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$IP" ] && IP="<IP-этого-сервера>"
+
+cat <<EOF
+
+== Готово! ==
+Адрес сервера в конфиги вписывать НЕ нужно — Lampac подставляет его сам
+(переменная {localhost}) по тому адресу, по которому вы к нему обращаетесь.
+
+Веб-Lampa:             http://$IP:9118
+Плагин для Lampa (ТВ): Настройки -> Расширения -> http://$IP:9118/on.js
+  (это единственный адрес, который вводится вручную — на нём завязано остальное)
+Парсер торрентов:      Jackett, настроится сам
+TorrServer:            http://$IP:9118/ts
+EOF
