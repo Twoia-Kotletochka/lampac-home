@@ -6,3 +6,6 @@ storage/
 lampac-image.tar
 lampac-image.tar.gz
 *.log
+
+# macOS
+.DS_Store
