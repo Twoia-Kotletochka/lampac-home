@@ -1,0 +1,32 @@
+name: lampac
+
+# Self-hosted Lampac NextGen — переносимый compose.
+# Все пути относительны папке с этим файлом, поэтому распаковать можно куда угодно.
+# Запуск: ./install.sh  (или вручную: docker compose up -d)
+
+services:
+  lampac:
+    image: ghcr.io/lampac-nextgen/lampac
+    container_name: lampac
+    network_mode: host          # DLNA (SSDP) + прямые peer-соединения TorrServer
+    restart: unless-stopped
+    shm_size: 1024mb
+    logging:
+      options:
+        tag: "{{.Name}}"
+    volumes:
+      # конфиг + пароль root
+      - ./lampac-docker/config/passwd:/lampac/passwd
+      - ./lampac-docker/config/init.conf:/lampac/init.conf
+      # наши кастомные плагины (разблокировка торрентов/парсера, украинский IPTV)
+      - ./lampac-docker/plugins/unlock.js:/lampac/wwwroot/unlock.js
+      - ./lampac-docker/plugins/uatv.js:/lampac/wwwroot/uatv.js
+      # правленые серверные плагины (парсер каждый запуск + фильтр shots + загрузка IPTV)
+      - ./lampac-docker/plugins/lampainit.js:/lampac/module/LampaWeb/plugins/lampainit.js
+      - ./lampac-docker/plugins/on.js:/lampac/module/LampaWeb/plugins/on.js
+      # база данных (настройки Lampac)
+      - ./lampac-docker/database:/lampac/database
+      # кэш и данные (TorrServer, DLNA) — регенерируются
+      - ./storage/cache:/lampac/cache
+      - ./storage/data/ts:/lampac/data/ts
+      - ./storage/data/dlna:/lampac/data/dlna

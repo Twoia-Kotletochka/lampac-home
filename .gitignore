@@ -1,0 +1,8 @@
+# секреты и локальные данные — не коммитим
+lampac-docker/config/passwd
+lampac-docker/database/
+lampac-docker/uatv-refresh.log
+storage/
+lampac-image.tar
+lampac-image.tar.gz
+*.log
