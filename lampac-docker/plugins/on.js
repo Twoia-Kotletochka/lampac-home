@@ -45,6 +45,10 @@
             Lampa.Storage.set('jackett_url', LHOSTNP);
             Lampa.Storage.set('jackett_key', '1');
             Lampa.Storage.set('shots', false);
+
+            // постеры и TMDB-API — через наш сервер (иначе клиент идёт напрямую
+            // на image.tmdb.org, и при недоступности постеры не грузятся)
+            Lampa.Storage.set('proxy_tmdb', true);
         }
 
         // подстраховка: снимаем скрытие разделов настроек при каждом открытии
