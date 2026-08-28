@@ -49,6 +49,27 @@
             // постеры и TMDB-API — через наш сервер (иначе клиент идёт напрямую
             // на image.tmdb.org, и при недоступности постеры не грузятся)
             Lampa.Storage.set('proxy_tmdb', true);
+
+            // вычистить из списка установленных плагинов те, что были удалены на сервере:
+            // клиент хранит их у себя и продолжал бы грузить (напр. season-fix ломал
+            // разбивку серий по сезонам — во 2-м сезоне показывались серии 1-го)
+            var BLACK = [
+                'season-fix.js', 'Shikimori.js',
+                'nb557.github.io/plugins/rating.js', 'tvigl.github.io/plugins/rutube.js',
+                'bylampa.github.io/cardify.js', 'bylampa.github.io/seas_and_eps.js',
+                'plugin.rootu.top/tv.js', 'cub.red/plugin/iptv'
+            ];
+            var plist = Lampa.Storage.get('plugins', '[]');
+            if (Array.isArray(plist)) {
+                var clean = plist.filter(function (p) {
+                    var u = String(p && p.url ? p.url : p);
+                    return !BLACK.some(function (b) { return u.indexOf(b) !== -1; });
+                });
+                if (clean.length !== plist.length) {
+                    Lampa.Storage.set('plugins', clean);
+                    need_reload = true;
+                }
+            }
         }
 
         // подстраховка: снимаем скрытие разделов настроек при каждом открытии
