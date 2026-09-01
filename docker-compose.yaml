@@ -1,32 +1,51 @@
 name: lampac
 
-# Self-hosted Lampac NextGen — переносимый compose.
-# Все пути относительны папке с этим файлом, поэтому распаковать можно куда угодно.
-# Запуск: ./install.sh  (или вручную: docker compose up -d)
-
 services:
   lampac:
     image: ghcr.io/lampac-nextgen/lampac
     container_name: lampac
-    network_mode: host          # DLNA (SSDP) + прямые peer-соединения TorrServer
+    network_mode: host
+    dns:
+      - ${LAMPAC_DNS:-1.1.1.1}
+    environment:
+      LAMPAC_STARTUP_CHECK_HOST: ${LAMPAC_STARTUP_CHECK_HOST:-connectivitycheck.gstatic.com}
+      LAMPAC_STARTUP_CHECK_URL: ${LAMPAC_STARTUP_CHECK_URL:-http://connectivitycheck.gstatic.com/generate_204}
+      LAMPAC_STARTUP_WAIT_SECONDS: ${LAMPAC_STARTUP_WAIT_SECONDS:-60}
+    entrypoint:
+      - /usr/bin/sh
+      - /lampac/startup-wait.sh
+    command:
+      - /usr/share/dotnet/dotnet
+      - Core.dll
     restart: unless-stopped
     shm_size: 1024mb
     logging:
       options:
         tag: "{{.Name}}"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS --max-time 5 http://127.0.0.1:9118/ts/echo | grep -q '^MatriX' &&
+          curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:9118/ &&
+          curl -fsS --max-time 5 http://127.0.0.1:9118/api/v1.0/conf | grep -q apikey
+      interval: 2m
+      timeout: 20s
+      start_period: 240s
+      start_interval: 5s
+      retries: 3
     volumes:
-      # конфиг + пароль root
+      - ./lampac-startup-wait.sh:/lampac/startup-wait.sh:ro
       - ./lampac-docker/config/passwd:/lampac/passwd
       - ./lampac-docker/config/init.conf:/lampac/init.conf
-      # наши кастомные плагины (разблокировка торрентов/парсера, украинский IPTV)
       - ./lampac-docker/plugins/unlock.js:/lampac/wwwroot/unlock.js
+      # свой плагин украинского IPTV (каналы встроены)
       - ./lampac-docker/plugins/uatv.js:/lampac/wwwroot/uatv.js
-      # правленые серверные плагины (парсер каждый запуск + фильтр shots + загрузка IPTV)
+      # правленый lampainit.js: настройка парсера при каждом запуске (нативная сборка)
       - ./lampac-docker/plugins/lampainit.js:/lampac/module/LampaWeb/plugins/lampainit.js
+      # правленый on.js: inline-разблокировка демо-режима + парсер (магазинная сборка)
       - ./lampac-docker/plugins/on.js:/lampac/module/LampaWeb/plugins/on.js
-      # база данных (настройки Lampac)
       - ./lampac-docker/database:/lampac/database
-      # кэш и данные (TorrServer, DLNA) — регенерируются
-      - ./storage/cache:/lampac/cache
-      - ./storage/data/ts:/lampac/data/ts
-      - ./storage/data/dlna:/lampac/data/dlna
+      - ./cache:/lampac/cache
+      - ./data/ts:/lampac/data/ts
+      - ./data/dlna:/lampac/data/dlna

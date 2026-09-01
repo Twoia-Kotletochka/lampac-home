@@ -37,7 +37,7 @@ if [ ! -s lampac-docker/config/passwd ]; then
 fi
 
 # 3. Каталоги данных
-mkdir -p storage/cache storage/data/ts storage/data/dlna lampac-docker/database
+mkdir -p cache data/ts data/dlna lampac-docker/database
 
 # 4. Запуск
 echo "-> Запускаю контейнер..."

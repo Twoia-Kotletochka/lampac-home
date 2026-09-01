@@ -46,7 +46,7 @@ cd lampac-home
 
 - Docker + docker compose (плагин v2)
 - Linux-хост (проверено на Debian). `network_mode: host` — нужен для DLNA/TorrServer.
-- ~3 ГБ под образ; место под кэш/торренты — папка `storage/`.
+- ~3 ГБ под образ; место под кэш и торренты — папки `cache/` и `data/`.
 
 ## Что внутри
 
@@ -63,7 +63,7 @@ lampac-docker/
   plugins/on.js              инъекция парсера + фильтр shots + загрузка IPTV
   gen_uatv.py                генератор uatv.js из m3u-плейлистов
   refresh_uatv.sh            ежедневное обновление IPTV (ставится в cron)
-storage/                     кэш и данные (создаются при установке)
+cache/, data/                 кэш и данные TorrServer/DLNA (создаются при установке)
 ```
 
 ## Обслуживание
