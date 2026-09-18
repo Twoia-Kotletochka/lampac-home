@@ -19,3 +19,5 @@ edge/caddy-data/
 edge/caddy-config/
 
 edge/streamkey.txt
+edge/creds-guest.txt
+edge/hash-guest.txt
