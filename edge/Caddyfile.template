@@ -29,7 +29,12 @@
 	# Пути, нужные для просмотра, остаются открытыми:
 	# /ts/torrents (без него плеер не стартует), /ts/stream, /ts/play, /ts/playlist, /ts/echo.
 	@admin path /ts /ts/ /ts/static/* /ts/settings /ts/settings/* /ts/shutdown /ts/shutdown/* /ts/cache /ts/cache/* /ts/torrent/upload /ts/torrent/upload/* /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest /dlna/delete /dlna/delete/* /dlna/tracker/*
-	respond @admin 404
+	# ВАЖНО: блокировка должна быть именно в handle. Директива respond вне handle
+	# не сработает — блок handle с reverse_proxy перехватит запрос раньше,
+	# и админские пути молча уедут на бэкенд. Блоки handle проверяются по порядку.
+	handle @admin {
+		respond 404
+	}
 
 	# Свой ts.js вместо лампаковского.
 	# Оригинал включает на клиенте torrserver_auth, и Lampa начинает слать на /ts/*
