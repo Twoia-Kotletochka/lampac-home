@@ -7,57 +7,77 @@
 	}
 }
 
-# Слушаем ТОЛЬКО loopback: из локальной сети этот порт не виден,
-# сюда ходит исключительно cloudflared. Локальные клиенты (телевизор и прочие)
-# идут напрямую на 9118 и никакого пароля не спрашивают.
+# Слушаем ТОЛЬКО loopback: из локальной сети порт не виден,
+# сюда ходит исключительно cloudflared. ТВ и LAN идут прямо на 9118 без пароля.
 :9119 {
 	bind 127.0.0.1
 
-	basic_auth {
-		__USER__ __HASH__
-	}
+	route {
+		# Поток по одноразовому токену — БЕЗ пароля, чтобы внешний плеер (VLC)
+		# не спрашивал логин. Токен открывает только воспроизведение: ни интерфейса,
+		# ни API, ни настроек по нему не получить. Лежит в streamkey.txt.
+		@stream {
+			path /ts/stream*
+			query tskey=__STREAMKEY__
+		}
+		handle @stream {
+			reverse_proxy 127.0.0.1:9118 {
+				header_up xscheme https
+				header_up xhost {host}
+				flush_interval -1
+			}
+		}
 
-	# --- Админские пути: наружу не отдаём ВООБЩЕ, даже с верным паролем. ---
-	# /ts/static        — скрипты веб-админки TorrServer. Сам корень /ts блокировать НЕЛЬЗЯ:
-	#                     по нему Lampa проверяет доступность сервера и при 404 отказывается
-	#                     работать с торрентами. Без своих бандлов админка грузится пустой
-	#                     оболочкой и ничего не умеет, а опасные эндпоинты закрыты ниже.
-	# /ts/shutdown       — выключение TorrServer. В Lampac защита от него сломана:
-	#                      сравнивают path.StartsWith("/shutdown"), а path = "/ts/shutdown",
-	#                      условие всегда ложно и запрос доходит до TorrServer. Чиним здесь.
-	# /ts/torrent/upload — загрузка произвольного .torrent
-	# /dlna/delete, /dlna/tracker/* — удаление файлов и управление закачками на диске
-	#
-	# Пути, нужные для просмотра, остаются открытыми:
-	# /ts/torrents (без него плеер не стартует), /ts/stream, /ts/play, /ts/playlist, /ts/echo.
-	@admin path /ts/static/* /ts/shutdown /ts/shutdown/* /ts/torrent/upload /ts/torrent/upload/* /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest /dlna/delete /dlna/delete/* /dlna/tracker/*
-	# ВАЖНО: блокировка должна быть именно в handle. Директива respond вне handle
-	# не сработает — блок handle с reverse_proxy перехватит запрос раньше,
-	# и админские пути молча уедут на бэкенд. Блоки handle проверяются по порядку.
-	handle @admin {
-		respond 404
-	}
+		basic_auth {
+			__USER__ __HASH__
+		}
 
-	# Свой ts.js вместо лампаковского.
-	# Оригинал включает на клиенте torrserver_auth, и Lampa начинает слать на /ts/*
-	# собственный заголовок Authorization для TorrServer. Он затирает пароль входа —
-	# прокси отвечает 401, и браузер бесконечно переспрашивает пароль.
-	# Своя авторизация клиенту не нужна: Lampac подставляет данные TorrServer сам.
-	# Подмена действует только на внешнем входе; локальные клиенты получают штатный ts.js.
-	handle /ts.js {
-		root * /srv/static
-		header Content-Type "application/javascript; charset=utf-8"
-		file_server
-	}
+		# --- Админские пути: наружу не отдаём ВООБЩЕ, даже с верным паролем. ---
+		# /ts, /ts/static  — веб-админка TorrServer (список, удаление, всё подряд)
+		# /ts/settings     — настройки TorrServer (пути на диске, лимиты кэша)
+		# /ts/shutdown     — выключение TorrServer. В Lampac защита от него СЛОМАНА:
+		#                    сравнивают path.StartsWith("/shutdown"), а path = "/ts/shutdown",
+		#                    поэтому запрос доходит и реально гасит сервер. Чиним здесь.
+		# /ts/torrent/upload — загрузка произвольного .torrent
+		# /dlna/delete, /dlna/tracker/* — удаление файлов и управление закачками на диске
+		@admin path /ts/static/* /ts/shutdown /ts/shutdown/* \
+ /ts/torrent/upload /ts/torrent/upload/* \
+ /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest \
+ /dlna/delete /dlna/delete/* /dlna/tracker/*
+		handle @admin {
+			respond 404
+		}
 
-	handle {
-		reverse_proxy 127.0.0.1:9118 {
-			# Lampac строит адреса плагинов ({localhost}) по ЭТИМ заголовкам,
-			# а не по стандартным X-Forwarded-*. Без них он отдал бы http://127.0.0.1:9118,
-			# и страница по домену сломалась бы на mixed content.
-			header_up xscheme https
-			header_up xhost {host}
-			flush_interval -1
+		# Свой ts.js вместо лампаковского: без клиентской авторизации TorrServer.
+		# Оригинал включает torrserver_auth, его заголовок Authorization затирает пароль
+		# входа и браузер бесконечно переспрашивает. Подменяем только для домена —
+		# по локалке ТВ получает штатный ts.js от Lampac.
+		# Отдаёт .m3u для внешнего плеера: клиент передаёт адрес потока, а токен
+		# дописывается здесь — в коде страницы его нет. Сам /openin под паролем,
+		# поэтому сгенерировать плейлист может только вошедший.
+		handle /openin {
+			header Content-Type "audio/x-mpegurl; charset=utf-8"
+			header Content-Disposition "attachment; filename=\"lampa.m3u\""
+			respond `#EXTM3U
+#EXTINF:-1,{http.request.uri.query.title}
+{http.request.uri.query.u}&tskey=__STREAMKEY__
+` 200
+		}
+
+		handle /ts.js {
+			root * /srv/static
+			header Content-Type "application/javascript; charset=utf-8"
+			file_server
+		}
+
+		handle {
+			reverse_proxy 127.0.0.1:9118 {
+				# Lampac по этим заголовкам строит адреса плагинов ({localhost}).
+				# Без них он отдал бы http://127.0.0.1:9118 и страница по домену сломалась бы.
+				header_up xscheme https
+				header_up xhost {host}
+				flush_interval -1
+			}
 		}
 	}
 }

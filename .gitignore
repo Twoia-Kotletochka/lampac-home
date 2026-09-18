@@ -17,3 +17,5 @@ edge/hash.txt
 edge/Caddyfile
 edge/caddy-data/
 edge/caddy-config/
+
+edge/streamkey.txt

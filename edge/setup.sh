@@ -30,13 +30,18 @@ echo "-> Считаю хеш пароля..."
 docker run --rm caddy:2-alpine caddy hash-password --plaintext "$PASS" > hash.txt
 chmod 600 hash.txt
 
-# 3. Конфиг прокси из шаблона
-sed -e "s|__USER__|$LOGIN|" -e "s|__HASH__|$(cat hash.txt)|" Caddyfile.template > Caddyfile
+# 3. Токен для внешнего плеера: даёт доступ ТОЛЬКО к воспроизведению,
+#    чтобы VLC не спрашивал пароль. Ни интерфейс, ни API по нему не открыть.
+[ -s streamkey.txt ] || { openssl rand -hex 24 > streamkey.txt; chmod 600 streamkey.txt; }
+
+# 4. Конфиг прокси из шаблона
+sed -e "s|__USER__|$LOGIN|" -e "s|__HASH__|$(cat hash.txt)|" \
+    -e "s|__STREAMKEY__|$(cat streamkey.txt)|" Caddyfile.template > Caddyfile
 docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
   caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
   && echo "-> Конфиг прокси собран и проверен."
 
-# 4. Токен туннеля
+# 5. Токен туннеля
 [ -s .env ] || cp .env.example .env
 chmod 600 .env
 if ! grep -qE '^TUNNEL_TOKEN=.+' .env; then
@@ -50,7 +55,7 @@ if ! grep -qE '^TUNNEL_TOKEN=.+' .env; then
   [ -n "$TOKEN" ] && printf 'TUNNEL_TOKEN=%s\n' "$TOKEN" >> .env
 fi
 
-# 5. Запуск
+# 6. Запуск
 if grep -qE '^TUNNEL_TOKEN=.+' .env; then
   docker compose up -d
 else
