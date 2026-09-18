@@ -18,7 +18,10 @@
 	}
 
 	# --- Админские пути: наружу не отдаём ВООБЩЕ, даже с верным паролем. ---
-	# /ts, /ts/static    — веб-админка TorrServer (список раздач, удаление, всё подряд)
+	# /ts/static        — скрипты веб-админки TorrServer. Сам корень /ts блокировать НЕЛЬЗЯ:
+	#                     по нему Lampa проверяет доступность сервера и при 404 отказывается
+	#                     работать с торрентами. Без своих бандлов админка грузится пустой
+	#                     оболочкой и ничего не умеет, а опасные эндпоинты закрыты ниже.
 	# /ts/settings       — настройки TorrServer: пути на диске, лимиты кэша
 	# /ts/shutdown       — выключение TorrServer. В Lampac защита от него сломана:
 	#                      сравнивают path.StartsWith("/shutdown"), а path = "/ts/shutdown",
@@ -28,7 +31,7 @@
 	#
 	# Пути, нужные для просмотра, остаются открытыми:
 	# /ts/torrents (без него плеер не стартует), /ts/stream, /ts/play, /ts/playlist, /ts/echo.
-	@admin path /ts /ts/ /ts/static/* /ts/settings /ts/settings/* /ts/shutdown /ts/shutdown/* /ts/cache /ts/cache/* /ts/torrent/upload /ts/torrent/upload/* /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest /dlna/delete /dlna/delete/* /dlna/tracker/*
+	@admin path /ts/static/* /ts/settings /ts/settings/* /ts/shutdown /ts/shutdown/* /ts/cache /ts/cache/* /ts/torrent/upload /ts/torrent/upload/* /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest /dlna/delete /dlna/delete/* /dlna/tracker/*
 	# ВАЖНО: блокировка должна быть именно в handle. Директива respond вне handle
 	# не сработает — блок handle с reverse_proxy перехватит запрос раньше,
 	# и админские пути молча уедут на бэкенд. Блоки handle проверяются по порядку.
