@@ -9,3 +9,11 @@ lampac-image.tar.gz
 
 # macOS
 .DS_Store
+
+# внешний доступ: секреты и то, что генерируется при установке
+edge/.env
+edge/creds.txt
+edge/hash.txt
+edge/Caddyfile
+edge/caddy-data/
+edge/caddy-config/

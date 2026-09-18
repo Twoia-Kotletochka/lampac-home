@@ -1,0 +1,56 @@
+{
+	admin off
+	auto_https off
+	log {
+		output stderr
+		level ERROR
+	}
+}
+
+# Слушаем ТОЛЬКО loopback: из локальной сети этот порт не виден,
+# сюда ходит исключительно cloudflared. Локальные клиенты (телевизор и прочие)
+# идут напрямую на 9118 и никакого пароля не спрашивают.
+:9119 {
+	bind 127.0.0.1
+
+	basic_auth {
+		__USER__ __HASH__
+	}
+
+	# --- Админские пути: наружу не отдаём ВООБЩЕ, даже с верным паролем. ---
+	# /ts, /ts/static    — веб-админка TorrServer (список раздач, удаление, всё подряд)
+	# /ts/settings       — настройки TorrServer: пути на диске, лимиты кэша
+	# /ts/shutdown       — выключение TorrServer. В Lampac защита от него сломана:
+	#                      сравнивают path.StartsWith("/shutdown"), а path = "/ts/shutdown",
+	#                      условие всегда ложно и запрос доходит до TorrServer. Чиним здесь.
+	# /ts/torrent/upload — загрузка произвольного .torrent
+	# /dlna/delete, /dlna/tracker/* — удаление файлов и управление закачками на диске
+	#
+	# Пути, нужные для просмотра, остаются открытыми:
+	# /ts/torrents (без него плеер не стартует), /ts/stream, /ts/play, /ts/playlist, /ts/echo.
+	@admin path /ts /ts/ /ts/static/* /ts/settings /ts/settings/* /ts/shutdown /ts/shutdown/* /ts/cache /ts/cache/* /ts/torrent/upload /ts/torrent/upload/* /ts/torznab/* /ts/search/* /ts/msx/* /ts/site.webmanifest /dlna/delete /dlna/delete/* /dlna/tracker/*
+	respond @admin 404
+
+	# Свой ts.js вместо лампаковского.
+	# Оригинал включает на клиенте torrserver_auth, и Lampa начинает слать на /ts/*
+	# собственный заголовок Authorization для TorrServer. Он затирает пароль входа —
+	# прокси отвечает 401, и браузер бесконечно переспрашивает пароль.
+	# Своя авторизация клиенту не нужна: Lampac подставляет данные TorrServer сам.
+	# Подмена действует только на внешнем входе; локальные клиенты получают штатный ts.js.
+	handle /ts.js {
+		root * /srv/static
+		header Content-Type "application/javascript; charset=utf-8"
+		file_server
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:9118 {
+			# Lampac строит адреса плагинов ({localhost}) по ЭТИМ заголовкам,
+			# а не по стандартным X-Forwarded-*. Без них он отдал бы http://127.0.0.1:9118,
+			# и страница по домену сломалась бы на mixed content.
+			header_up xscheme https
+			header_up xhost {host}
+			flush_interval -1
+		}
+	}
+}

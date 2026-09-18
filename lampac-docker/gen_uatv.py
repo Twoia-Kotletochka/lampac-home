@@ -1,6 +1,7 @@
 import re, json
 
-OUT = "/srv/lampac/lampac-docker/plugins/uatv.js"
+import os
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins", "uatv.js")
 
 AD_RE = re.compile(r'iptv\.org\.ua|tva\.in\.ua|tva\.org\.ua|mater\.com|fas-tv|ревиз|reviz|💰|👍|\*in-ua|\*org\*ua', re.I)
 

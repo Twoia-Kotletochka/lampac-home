@@ -1,0 +1,31 @@
+name: lampac-edge
+services:
+  # Слой авторизации: логин/пароль для входа снаружи
+  auth:
+    image: caddy:2-alpine
+    container_name: lampac-auth
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./static:/srv/static:ro
+      - ./caddy-data:/data
+      - ./caddy-config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -S -q -O /dev/null http://127.0.0.1:9119/ 2>&1 | grep -q '401 '"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+
+  # Туннель Cloudflare: домен -> auth -> lampac
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: lampac-cloudflared
+    network_mode: host
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # токен лежит в .env, а не в командной строке — иначе он виден в docker inspect и ps
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - auth
